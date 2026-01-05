@@ -1,6 +1,12 @@
 import { useState } from 'react';
 import { useCreateOrUpdateProfile } from '../hooks/useQueries';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
@@ -12,32 +18,56 @@ export default function ProfileSetupModal() {
   const [bio, setBio] = useState('');
   const createProfile = useCreateOrUpdateProfile();
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    
-    if (!username.trim()) {
+
+    const trimmedUsername = username.trim();
+    const trimmedBio = bio.trim();
+
+    // Empty username check
+    if (!trimmedUsername) {
       toast.error('Please enter a username');
       return;
     }
 
+    // Username format validation
+    const usernameRegex = /^[a-zA-Z0-9.@]+$/;
+    if (!usernameRegex.test(trimmedUsername)) {
+      toast.error("Username can contain only letters, numbers, '.' and '@'");
+      return;
+    }
+
     try {
-      await createProfile.mutateAsync({ username: username.trim(), bio: bio.trim() });
+      await createProfile.mutateAsync({
+        username: trimmedUsername,
+        bio: trimmedBio,
+      });
+
       toast.success('Profile created successfully!');
-    } catch (error: any) {
-      toast.error(error.message || 'Failed to create profile');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        toast.error(error.message);
+      } else {
+        toast.error('Failed to create profile');
+      }
     }
   };
 
   return (
-    <Dialog open={true}>
-      <DialogContent className="sm:max-w-md" onPointerDownOutside={(e) => e.preventDefault()}>
+    <Dialog open>
+      <DialogContent
+        className="sm:max-w-md"
+        onPointerDownOutside={(e) => e.preventDefault()}
+      >
         <DialogHeader>
           <DialogTitle>Welcome to Siddhiworld!</DialogTitle>
           <DialogDescription>
-            Let's set up your profile to get started.
+            Let’s set up your profile to get started.
           </DialogDescription>
         </DialogHeader>
+
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Username */}
           <div className="space-y-2">
             <Label htmlFor="username">Username</Label>
             <Input
@@ -47,11 +77,14 @@ export default function ProfileSetupModal() {
               onChange={(e) => setUsername(e.target.value)}
               maxLength={20}
               disabled={createProfile.isPending}
+              autoComplete="off"
             />
             <p className="text-xs text-muted-foreground">
-              Letters, numbers, '.', '-', and '_' only. Max 20 characters.
+              Letters, numbers, <code>.</code> and <code>@</code> only. Max 20 characters.
             </p>
           </div>
+
+          {/* Bio */}
           <div className="space-y-2">
             <Label htmlFor="bio">Bio (optional)</Label>
             <Textarea
@@ -60,11 +93,18 @@ export default function ProfileSetupModal() {
               value={bio}
               onChange={(e) => setBio(e.target.value)}
               rows={3}
+              maxLength={150}
               disabled={createProfile.isPending}
             />
           </div>
-          <Button type="submit" className="w-full" disabled={createProfile.isPending}>
-            {createProfile.isPending ? 'Creating Profile...' : 'Create Profile'}
+
+          {/* Submit */}
+          <Button
+            type="submit"
+            className="w-full"
+            disabled={createProfile.isPending}
+          >
+            {createProfile.isPending ? 'Creating Profile…' : 'Create Profile'}
           </Button>
         </form>
       </DialogContent>
