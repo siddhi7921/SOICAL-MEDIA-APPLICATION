@@ -3,6 +3,8 @@
 
 ## Overview
 A social media platform combining Instagram-style photo sharing with YouTube-style short video content, featuring user profiles, content feeds, and messaging capabilities.
+## web pic 
+--<img width="1605" height="900" alt="image" src="https://github.com/user-attachments/assets/00e953b1-8816-4c30-ac24-aefb15192989" />
 
 ## Authentication
 - Internet Identity integration for user sign up, login, and logout
