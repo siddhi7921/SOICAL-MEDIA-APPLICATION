@@ -33,7 +33,7 @@ export default function ProfileSetupModal() {
     // Username format validation
     const usernameRegex = /^[a-zA-Z0-9.@]+$/;
     if (!usernameRegex.test(trimmedUsername)) {
-      toast.error("Username can contain only letters, numbers, '.' and '@'");
+      toast.error("Username can contain only letters, numbers");
       return;
     }
 
@@ -80,7 +80,7 @@ export default function ProfileSetupModal() {
               autoComplete="off"
             />
             <p className="text-xs text-muted-foreground">
-              Letters, numbers, <code>.</code> and <code>@</code> only. Max 20 characters.
+              Letters, numbers only. Max 20 characters.
             </p>
           </div>
 
