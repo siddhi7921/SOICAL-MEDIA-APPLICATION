@@ -1,10 +1,24 @@
-import { useGetCallerUserProfile, useGetUserPosts, useSaveCallerUserProfile } from '../hooks/useQueries';
+import {
+  useGetCallerUserProfile,
+  useGetUserPosts,
+  useSaveCallerUserProfile,
+} from '../hooks/useQueries';
 import { useInternetIdentity } from '../hooks/useInternetIdentity';
 import { useNavigate } from '@tanstack/react-router';
 import { useState, useEffect } from 'react';
-import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import {
+  Avatar,
+  AvatarImage,
+  AvatarFallback,
+} from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
@@ -12,11 +26,19 @@ import { Loader2, Edit, Grid } from 'lucide-react';
 import { toast } from 'sonner';
 import { ExternalBlob } from '../backend';
 
+const MAX_BIO_LENGTH = 150;
+const MAX_IMAGE_SIZE_MB = 5;
+
 export default function ProfilePage() {
   const { identity } = useInternetIdentity();
   const navigate = useNavigate();
-  const { data: userProfile, isLoading: profileLoading } = useGetCallerUserProfile();
-  const { data: posts = [], isLoading: postsLoading } = useGetUserPosts(identity?.getPrincipal() || null);
+
+  const { data: userProfile, isLoading: profileLoading } =
+    useGetCallerUserProfile();
+
+  const { data: posts = [], isLoading: postsLoading } =
+    useGetUserPosts(identity?.getPrincipal() || null);
+
   const saveProfile = useSaveCallerUserProfile();
 
   const [editOpen, setEditOpen] = useState(false);
@@ -24,32 +46,52 @@ export default function ProfilePage() {
   const [profilePicFile, setProfilePicFile] = useState<File | null>(null);
   const [uploadProgress, setUploadProgress] = useState(0);
 
+  /* Redirect if not logged in */
   useEffect(() => {
     if (!identity) {
       navigate({ to: '/' });
     }
   }, [identity, navigate]);
 
+  /* Sync bio */
   useEffect(() => {
     if (userProfile) {
-      setBio(userProfile.bio);
+      setBio(userProfile.bio || '');
     }
   }, [userProfile]);
 
   if (!identity) return null;
 
+  /* Save profile */
   const handleSaveProfile = async () => {
     if (!userProfile) return;
+
+    if (bio.length > MAX_BIO_LENGTH) {
+      toast.error(`Bio must be under ${MAX_BIO_LENGTH} characters`);
+      return;
+    }
 
     try {
       let profilePicture = userProfile.profilePicture;
 
       if (profilePicFile) {
+        if (!profilePicFile.type.startsWith('image/')) {
+          toast.error('Only image files are allowed');
+          return;
+        }
+
+        if (profilePicFile.size > MAX_IMAGE_SIZE_MB * 1024 * 1024) {
+          toast.error('Image size must be under 5MB');
+          return;
+        }
+
         const arrayBuffer = await profilePicFile.arrayBuffer();
         const uint8Array = new Uint8Array(arrayBuffer);
-        profilePicture = ExternalBlob.fromBytes(uint8Array).withUploadProgress((percentage) => {
-          setUploadProgress(percentage);
-        });
+
+        profilePicture = ExternalBlob.fromBytes(uint8Array)
+          .withUploadProgress((percentage) => {
+            setUploadProgress(percentage);
+          });
       }
 
       await saveProfile.mutateAsync({
@@ -62,11 +104,16 @@ export default function ProfilePage() {
       setEditOpen(false);
       setProfilePicFile(null);
       setUploadProgress(0);
-    } catch (error: any) {
-      toast.error(error.message || 'Failed to update profile');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        toast.error(error.message);
+      } else {
+        toast.error('Failed to update profile');
+      }
     }
   };
 
+  /* Loading */
   if (profileLoading) {
     return (
       <div className="flex justify-center items-center h-[calc(100vh-8rem)]">
@@ -83,9 +130,9 @@ export default function ProfilePage() {
     );
   }
 
-  const profilePicUrl = userProfile.profilePicture
-    ? userProfile.profilePicture.getDirectURL()
-    : '/assets/generated/default-avatar.dim_150x150.png';
+  const profilePicUrl =
+    userProfile.profilePicture?.getDirectURL() ||
+    '/assets/generated/default-avatar.dim_150x150.png';
 
   return (
     <div className="container max-w-4xl py-8">
@@ -93,12 +140,17 @@ export default function ProfilePage() {
       <div className="flex flex-col md:flex-row items-center md:items-start gap-8 mb-12">
         <Avatar className="h-32 w-32">
           <AvatarImage src={profilePicUrl} />
-          <AvatarFallback>{userProfile.username[0].toUpperCase()}</AvatarFallback>
+          <AvatarFallback>
+            {userProfile.username?.[0]?.toUpperCase() || '?'}
+          </AvatarFallback>
         </Avatar>
-        
+
         <div className="flex-1 text-center md:text-left">
           <div className="flex flex-col md:flex-row items-center gap-4 mb-4">
-            <h1 className="text-2xl font-bold">{userProfile.username}</h1>
+            <h1 className="text-2xl font-bold">
+              {userProfile.username}
+            </h1>
+
             <Dialog open={editOpen} onOpenChange={setEditOpen}>
               <DialogTrigger asChild>
                 <Button variant="outline" size="sm" className="gap-2">
@@ -106,10 +158,12 @@ export default function ProfilePage() {
                   Edit Profile
                 </Button>
               </DialogTrigger>
+
               <DialogContent>
                 <DialogHeader>
                   <DialogTitle>Edit Profile</DialogTitle>
                 </DialogHeader>
+
                 <div className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="profilePic">Profile Picture</Label>
@@ -117,24 +171,31 @@ export default function ProfilePage() {
                       id="profilePic"
                       type="file"
                       accept="image/*"
-                      onChange={(e) => setProfilePicFile(e.target.files?.[0] || null)}
+                      onChange={(e) =>
+                        setProfilePicFile(
+                          e.target.files?.[0] || null
+                        )
+                      }
                       disabled={saveProfile.isPending}
                     />
                   </div>
+
                   <div className="space-y-2">
                     <Label htmlFor="bio">Bio</Label>
                     <Textarea
                       id="bio"
                       value={bio}
+                      maxLength={MAX_BIO_LENGTH}
                       onChange={(e) => setBio(e.target.value)}
                       rows={4}
                       disabled={saveProfile.isPending}
                     />
                   </div>
+
                   {uploadProgress > 0 && uploadProgress < 100 && (
                     <div className="space-y-2">
                       <div className="flex justify-between text-sm">
-                        <span>Uploading...</span>
+                        <span>Uploading…</span>
                         <span>{uploadProgress}%</span>
                       </div>
                       <div className="w-full bg-secondary rounded-full h-2">
@@ -145,27 +206,32 @@ export default function ProfilePage() {
                       </div>
                     </div>
                   )}
+
                   <Button
                     onClick={handleSaveProfile}
                     disabled={saveProfile.isPending}
                     className="w-full"
                   >
-                    {saveProfile.isPending ? 'Saving...' : 'Save Changes'}
+                    {saveProfile.isPending
+                      ? 'Saving…'
+                      : 'Save Changes'}
                   </Button>
                 </div>
               </DialogContent>
             </Dialog>
           </div>
-          
+
           <div className="flex justify-center md:justify-start gap-8 mb-4">
             <div className="text-center">
               <p className="font-bold text-lg">{posts.length}</p>
               <p className="text-sm text-muted-foreground">Posts</p>
             </div>
           </div>
-          
+
           {userProfile.bio && (
-            <p className="text-muted-foreground">{userProfile.bio}</p>
+            <p className="text-muted-foreground">
+              {userProfile.bio}
+            </p>
           )}
         </div>
       </div>
@@ -176,7 +242,7 @@ export default function ProfilePage() {
           <Grid className="h-5 w-5" />
           <h2 className="text-lg font-semibold">Posts</h2>
         </div>
-        
+
         {postsLoading ? (
           <div className="flex justify-center py-12">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -193,26 +259,28 @@ export default function ProfilePage() {
         ) : (
           <div className="grid grid-cols-3 gap-1 md:gap-4">
             {posts.map((post) => (
-              <div key={Number(post.id)} className="aspect-square relative group cursor-pointer overflow-hidden rounded-lg">
+              <div
+                key={Number(post.id)}
+                className="aspect-square relative group cursor-pointer overflow-hidden rounded-lg"
+              >
                 {post.isVideo ? (
                   <video
                     src={post.media.getDirectURL()}
+                    preload="metadata"
+                    controls
                     className="w-full h-full object-cover"
                   />
                 ) : (
                   <img
                     src={post.media.getDirectURL()}
-                    alt={post.caption}
+                    alt={post.caption || 'Post image'}
                     className="w-full h-full object-cover"
                   />
                 )}
+
                 <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-4 text-white">
-                  <span className="flex items-center gap-1">
-                    ❤️ {Number(post.likeCount)}
-                  </span>
-                  <span className="flex items-center gap-1">
-                    💬 {Number(post.commentCount)}
-                  </span>
+                  <span>❤️ {Number(post.likeCount)}</span>
+                  <span>💬 {Number(post.commentCount)}</span>
                 </div>
               </div>
             ))}
