@@ -24,19 +24,24 @@ export default function ProfileSetupModal() {
     const trimmedUsername = username.trim();
     const trimmedBio = bio.trim();
 
-    // Empty username check
+    // 1️⃣ Empty username check
     if (!trimmedUsername) {
       toast.error('Please enter a username');
       return;
     }
 
-    // Username format validation
-    const usernameRegex = /^[a-zA-Z0-9.@]+$/;
+    // 2️⃣ Username format validation (PROPER & MATCHED)
+    // Allowed: letters, numbers, ".", "_", "-"
+    const usernameRegex = /^[a-zA-Z0-9._-]+$/;
+
     if (!usernameRegex.test(trimmedUsername)) {
-      toast.error("Username can contain only letters, numbers");
+      toast.error(
+        "Username can contain only letters, numbers, '.', '_' and '-'"
+      );
       return;
     }
 
+    // 3️⃣ Create / Update profile
     try {
       await createProfile.mutateAsync({
         username: trimmedUsername,
@@ -76,11 +81,12 @@ export default function ProfileSetupModal() {
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               maxLength={20}
-              disabled={createProfile.isPending}
               autoComplete="off"
+              disabled={createProfile.isPending}
             />
             <p className="text-xs text-muted-foreground">
-              Letters, numbers only. Max 20 characters.
+              Letters, numbers, <code>.</code>, <code>_</code>, and <code>-</code> only.
+              Max 20 characters.
             </p>
           </div>
 
@@ -104,7 +110,9 @@ export default function ProfileSetupModal() {
             className="w-full"
             disabled={createProfile.isPending}
           >
-            {createProfile.isPending ? 'Creating Profile…' : 'Create Profile'}
+            {createProfile.isPending
+              ? 'Creating Profile…'
+              : 'Create Profile'}
           </Button>
         </form>
       </DialogContent>
